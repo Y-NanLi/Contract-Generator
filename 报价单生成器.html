@@ -1398,9 +1398,11 @@ function specShow(inp) {
     '</div>';
   }).join('');
   const rc = inp.getBoundingClientRect();
-  spEl.style.left = Math.max(8, Math.min(rc.left, window.innerWidth - 300)) + 'px';
+  /* 弹层比输入框宽一些，规格型号才不会被省略号截掉 */
+  const w = Math.round(Math.max(330, Math.min(rc.width + 130, window.innerWidth - 24)));
+  spEl.style.width = w + 'px';
+  spEl.style.left = Math.max(8, Math.min(rc.left, window.innerWidth - w - 12)) + 'px';
   spEl.style.top = (rc.bottom + 2) + 'px';
-  spEl.style.width = Math.max(240, rc.width) + 'px';
   spEl.classList.add('show');
 }
 function fillBySpec(i, spec) {
