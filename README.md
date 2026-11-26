@@ -40,12 +40,36 @@
 
 打印设置：纸张 A4、纵向、缩放 100%、取消页眉页脚、不勾「背景图形」。
 
+## 局域网 / NAS 部署（Docker）
+
+容器只做静态托管，页面还是这一个 HTML，没有后端、没有数据库；单据数据仍存在访问者浏览器里（按访问地址隔离）。
+
+```bash
+docker compose up -d --build        # 在本目录执行
+# 打开 http://这台机器的IP:8090
+```
+
+不想每次打镜像也可以只挂文件（改完 HTML 刷新即生效）：
+
+```yaml
+services:
+  quote:
+    image: nginx:alpine
+    ports: ["8090:80"]
+    volumes:
+      - /vol1/1000/docker/quote/报价单生成器.html:/usr/share/nginx/html/index.html:ro
+```
+
+端口刻意用 8090，避开送货单生成器常用的 8088；细节（飞牛 Compose 怎么填、从 file:// 换到 http:// 怎么搬数据）见 [`部署说明.md`](部署说明.md)。
+
 ## 文件
 
 | 文件 | 说明 |
 | --- | --- |
 | `报价单生成器.html` | 全部程序（HTML + CSS + JS 内联，3 个公司 logo 以 base64 内嵌，约 472 KB，v2.0） |
 | `README.md` | 本说明 |
+| `Dockerfile` / `docker-compose.yml` / `deploy/nginx.conf` / `.dockerignore` | 容器部署（nginx 静态托管，端口 8090） |
+| `部署说明.md` | Docker / 飞牛部署、端口与数据迁移 |
 
 ## 数据与备份
 

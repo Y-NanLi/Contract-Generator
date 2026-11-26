@@ -1,0 +1,17 @@
+.git
+.gitignore
+.github
+_ref
+_t14
+_t*
+*.pdf
+*.png
+*.log
+~$*
+*.tmp
+*.bak
+Thumbs.db
+desktop.ini
+README.md
+部署说明.md
+参考项目分析-送货单生成器可借鉴点.md
