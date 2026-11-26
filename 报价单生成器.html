@@ -714,6 +714,12 @@ document.addEventListener('input', e => {
 /* 明细末尾只保留 1 行空白，其余空行清掉 */
 function pruneBlankTail() {
   if (!Array.isArray(st.items) || !st.items.length) { st.items = [blankItem()]; return; }
+  /* 旧草稿里空行的数量被预填成 1，统一清空 */
+  st.items.forEach(it => {
+    if (!it) return;
+    if (String(it.name).trim() === '' && String(it.spec).trim() === '' && String(it.price).trim() === '' &&
+        String(it.qty).trim() === '1') it.qty = '';
+  });
   while (st.items.length > 1) {
     const l = st.items[st.items.length - 1];
     if (String(l.name).trim() === '' && String(l.spec).trim() === '' && String(l.price).trim() === '') st.items.pop();
@@ -1042,6 +1048,7 @@ $('#verTag').textContent = 'v' + VERSION;
 normTerms();
 renderTermsEdit();
 pruneBlankTail();
+try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) {}
 syncForm();
 renderEdit();
 render();
