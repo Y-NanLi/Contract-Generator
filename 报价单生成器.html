@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>报价单生成器</title>
+<style>
+:root{
+  --bg:#eef1f5; --card:#fff; --line:#d5dbe3; --text:#1f2937; --muted:#6b7280;
+  --accent:#1f6feb; --accent-d:#1558c0; --head:#22303f;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:"Microsoft YaHei UI","Microsoft YaHei","PingFang SC",sans-serif;font-size:13px;color:var(--text);background:var(--bg)}
+#app{display:flex;flex-direction:column;height:100vh}
+
+/* ---------- 顶栏 ---------- */
+.topbar{background:var(--head);color:#fff;display:flex;align-items:center;gap:10px;padding:0 14px;height:52px;flex:0 0 auto}
+.topbar .brand{font-size:15px;font-weight:700;letter-spacing:.5px;margin-right:6px}
+.topbar .brand i{font-style:normal;font-size:11px;font-weight:600;color:#93a3b5;margin-left:7px;letter-spacing:.5px}
+.topbar .tag{font-size:11px;color:#9fb3c8;border:1px solid #3b4c60;border-radius:10px;padding:1px 8px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.topbar .tag.hasCust{color:#c9d8e8;border-color:#4b6280}
+.topbar .spacer{flex:1}
+.btn{border:0;border-radius:6px;padding:7px 13px;font-size:13px;cursor:pointer;font-family:inherit;background:#e8edf3;color:#1f2937;transition:.15s}
+.btn:hover{filter:brightness(.96)}
+.btn.primary{background:var(--accent);color:#fff}
+.btn.primary:hover{background:var(--accent-d)}
+.btn.ghost{background:transparent;color:#dbe4ee;border:1px solid #44576b}
+.btn.ghost:hover{background:#2c3c4e}
+.btn.sm{padding:4px 9px;font-size:12px;border-radius:5px;white-space:nowrap}
+
+/* ---------- 主体 ---------- */
+.main{flex:1;display:flex;min-height:0}
+.rail{flex:0 0 66px;background:#1b2733;display:flex;flex-direction:column;gap:4px;padding:10px 5px;border-right:1px solid #16202b}
+.railBtn{display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 1px 8px;border:0;border-radius:9px;background:transparent;
+  color:#9fb3c8;font-size:11px;cursor:pointer;font-family:inherit;letter-spacing:.5px;transition:.15s;line-height:1}
+.railBtn svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;opacity:.92}
+.railBtn:hover{background:#26364a;color:#dbe6f2}
+.railBtn.on{background:#1f6feb;color:#fff;box-shadow:0 2px 8px rgba(31,111,235,.35)}
+
+.pages{flex:1 1 56%;min-width:420px;min-height:0;display:flex;flex-direction:column}
+.pagePanel{flex:1 1 auto;min-height:0;overflow:auto;padding:12px 14px 20px;display:none}
+.pagePanel.on{display:block}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:12px}
+.card-title{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;margin-bottom:10px;color:#111827}
+.card-title .sub{font-weight:400;color:var(--muted);font-size:11.5px}
+.card-title .spacer{flex:1}
+
+.grid{display:grid;grid-template-columns:76px 1fr 86px 1fr;gap:8px 10px;align-items:center}
+.grid .lbl{color:var(--muted);text-align:right;font-size:12.5px}
+.grid .span3{grid-column:2 / span 3}
+.field{width:100%;padding:6px 9px;border:1px solid var(--line);border-radius:5px;font-size:13px;background:#fff;outline:none;font-family:inherit}
+.field:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(31,111,235,.12)}
+select.field{cursor:pointer}
+.tiny{font-size:11.5px;color:#94a3b8;line-height:1.6}
+.rowline{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
+.check{display:inline-flex;align-items:center;gap:6px;color:#44566c;font-size:12.5px;cursor:pointer}
+.check input{accent-color:var(--accent);width:14px;height:14px;margin:0}
+
+/* 明细编辑 */
+.itemTools{display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+.itemTools .spacer{flex:1}
+.itemScroll{border:1px solid var(--line);border-radius:6px;overflow:auto;max-height:60vh;background:#fff}
+table.edit{width:100%;min-width:700px;border-collapse:collapse;table-layout:fixed}
+table.edit th{background:#f3f6f9;border-bottom:1px solid var(--line);font-weight:700;font-size:12px;color:#374151;padding:7px 4px;text-align:center;white-space:nowrap;position:sticky;top:0;z-index:2}
+table.edit td{border-bottom:1px solid #eef1f5;padding:0;vertical-align:middle}
+table.edit td input{width:100%;border:0;padding:7px 7px;font-size:12.5px;outline:none;background:transparent;font-family:inherit}
+table.edit td input:focus{background:#eef5ff}
+table.edit td.idx,table.edit td.amt{text-align:center;font-size:12px;color:#6b7280;background:#fafbfc}
+table.edit td.amt{text-align:right;padding-right:8px;color:#111827;font-variant-numeric:tabular-nums}
+table.edit td.del{width:34px;text-align:center}
+.delBtn{border:0;background:transparent;color:#94a3b8;cursor:pointer;font-size:14px;line-height:1;padding:5px}
+.delBtn:hover{color:#dc2626}
+.rowSum{display:flex;align-items:center;gap:16px;margin-top:10px;color:#111827;flex-wrap:wrap}
+.rowSum .k{color:#6b7280;font-size:12.5px}
+.rowSum b{color:var(--accent);font-size:16px}
+.rowSum .spacer{flex:1}
+
+/* 预览区 */
+.previewPane{flex:0 0 44%;border-left:1px solid var(--line);background:#dfe4ea;display:flex;flex-direction:column;min-width:300px}
+.previewBar{display:flex;align-items:center;gap:6px;padding:6px 10px;background:#f5f7fa;border-bottom:1px solid var(--line);font-size:12px;color:var(--muted)}
+.previewBar .spacer{flex:1}
+.zBtn{border:1px solid #cfd8e3;background:#fff;border-radius:4px;width:22px;height:22px;line-height:1;cursor:pointer;color:#475569;font-family:inherit}
+.zBtn:hover{background:#eef5ff;border-color:#9cc0f8;color:#1f6feb}
+.zVal{min-width:38px;text-align:center;font-size:11.5px;color:#334155}
+.zFit{border:1px solid #cfd8e3;background:#fff;border-radius:4px;padding:2px 7px;font-size:11.5px;cursor:pointer;color:#475569;font-family:inherit}
+.zFit:hover{background:#eef5ff;border-color:#9cc0f8;color:#1f6feb}
+.previewScroll{flex:1;overflow:auto;padding:14px}
+.zoomWrap{position:relative;margin:0 auto}
+
+/* 纸张 */
+.paper{position:absolute;left:0;top:0;width:210mm;min-height:297mm;background:#fff;padding:12mm 14mm;
+  box-shadow:0 2px 12px rgba(20,30,45,.2);transform-origin:top left;overflow:hidden}
+
+/* ---------- 单据本身 ---------- */
+.doc{font-family:"SimSun","宋体",serif;color:#000;font-size:13px;line-height:1.55}
+.doc .tRow{display:flex;align-items:center;margin:0 0 4px}
+.doc .tSide{flex:0 0 56px;font-size:10.5px;color:#333;white-space:nowrap}
+.doc .tTitle{flex:1;text-align:center;font-family:"SimHei","黑体",sans-serif;font-size:27px;font-weight:700;letter-spacing:.28em;text-indent:.28em;line-height:1.2}
+.doc .hRule{border:0;border-top:1.5px solid #000;margin:3px 0 8px}
+.doc .meta{display:grid;grid-template-columns:1fr 1fr;column-gap:16px}
+.doc .mRow{display:flex;align-items:flex-end;height:23px}
+.doc .mLab{flex:0 0 auto;white-space:nowrap;font-size:12.5px}
+.doc .mVal{flex:1 1 auto;min-width:0;border-bottom:.8px solid #000;padding:0 4px 1px;font-size:12.5px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.doc .mVal.b{font-weight:700}
+.doc .lead{margin:11px 0 6px;font-size:12.5px}
+.doc .leadTxt{margin:9px 0 5px;font-size:12.5px}
+.doc table.items{width:100%;border-collapse:collapse;table-layout:fixed}
+.doc table.items th,.doc table.items td{border:1px solid #000;padding:0 3px;height:9mm;font-size:12.5px;
+  text-align:center;vertical-align:middle;overflow:hidden}
+.doc table.items th{font-weight:700;font-family:"SimHei","黑体",sans-serif;font-size:12.5px}
+.doc table.items td.l{text-align:left;padding-left:6px}
+.doc table.items td.r{text-align:right;padding-right:6px;font-variant-numeric:tabular-nums}
+.doc .sumArea{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-top:8px}
+.doc .upper{font-size:12.5px;padding-bottom:2px}
+.doc .upper b{font-weight:700;letter-spacing:.05em}
+.doc .sumNums{flex:0 0 auto;display:grid;grid-template-columns:auto 1fr;column-gap:14px;row-gap:1px;text-align:right}
+.doc .sumNums .sk{font-size:11px;color:#333;text-align:left;line-height:1.7}
+.doc .sumNums .sv{font-size:11.5px;color:#111;text-align:right;font-variant-numeric:tabular-nums;line-height:1.7}
+.doc .sumNums .sk.big{font-size:13px;font-weight:700;font-family:"SimHei","黑体",sans-serif;color:#000;padding-top:2px}
+.doc .sumNums .sv.big{font-size:16px;font-weight:700;font-family:"SimHei","黑体",sans-serif;color:#000;padding-top:2px}
+.doc .terms{margin-top:12px;font-size:12px;line-height:1.95}
+.doc .terms .remark{white-space:pre-wrap}
+.doc .sign{margin-top:18px;display:flex;gap:16px;font-size:12px;flex-wrap:wrap}
+.doc .sign .sg{display:flex;align-items:flex-end;gap:2px}
+.doc .sign .sgLine{display:inline-block;border-bottom:.8px solid #000;min-width:90px;height:16px}
+
+/* 窄屏适配 */
+@media (max-width:1200px){
+  .grid{grid-template-columns:76px 1fr}
+  .grid .span3{grid-column:2 / span 1}
+  .pages{min-width:340px}
+  .previewPane{flex:0 0 42%;min-width:280px}
+}
+@media (max-width:980px){
+  .previewPane{display:none}
+}
+
+/* ---------- 打印 ---------- */
+#printRoot{display:none}
+@media print{
+  #app{display:none !important}
+  #printRoot{display:block !important}
+  body{background:#fff}
+  @page{size:A4 portrait;margin:12mm 14mm}
+  .doc{width:auto}
+  .paper{display:none}
+}
+
+/* ---------- 杂项 ---------- */
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#1f2937;color:#fff;
+  padding:9px 16px;border-radius:6px;font-size:12.5px;opacity:0;pointer-events:none;transition:.2s;z-index:60}
+#toast.show{opacity:1;bottom:34px}
+#modalLayer{position:fixed;inset:0;background:rgba(17,24,39,.45);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+#modalLayer.show{display:flex}
+.modal{background:#fff;border-radius:10px;width:min(720px,94vw);max-height:88vh;display:flex;flex-direction:column;overflow:hidden}
+.modal .mhead{display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)}
+.modal .mhead b{font-size:14px}
+.modal .mhead .spacer{flex:1}
+.modal .mbody{padding:14px 16px;overflow:auto}
+.modal .mfoot{padding:10px 16px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end}
+.closeX{border:0;background:transparent;font-size:18px;cursor:pointer;color:#6b7280;line-height:1}
+.helpText{font-size:12.5px;color:#374151;line-height:1.9}
+.helpText b{color:#111827}
+.pnote{color:#64748b;font-size:12px;line-height:1.95;background:#f8fafc;border:1px solid #eef2f7;border-radius:8px;padding:10px 12px;margin-top:12px}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="topbar">
+    <span class="brand">报价单<i id="verTag">v1.0</i></span>
+    <span class="tag" id="tagNo">未编号</span>
+    <span class="tag" id="tagCust">未选客户</span>
+    <span class="spacer"></span>
+    <button class="btn ghost" id="btnNew">新建</button>
+    <button class="btn ghost" id="btnSave">保存</button>
+    <button class="btn ghost" id="btnHelp">说明</button>
+    <button class="btn primary" id="btnPrint">打印 / 导出PDF</button>
+  </div>
+
+  <div class="main">
+    <nav class="rail" id="rail">
+      <button class="railBtn on" data-panel="base" title="单据信息、客户与我方信息"><svg viewBox="0 0 24 24"><rect x="5.5" y="3" width="13" height="18" rx="1.6"/><path d="M8.6 8.2h6.8M8.6 11.7h6.8M8.6 15.2h4.4"/></svg><span>单据</span></button>
+      <button class="railBtn" data-panel="items" title="货物明细与价格"><svg viewBox="0 0 24 24"><path d="M4 7.5h16M4 12h16M4 16.5h10"/></svg><span>明细</span></button>
+      <button class="railBtn" data-panel="terms" title="交期、发票、备注与签章"><svg viewBox="0 0 24 24"><path d="M6 3.6h9.4L19 7.2V20.4H6z"/><path d="M9 10h7M9 13.4h7M9 16.8h4.4"/></svg><span>条款</span></button>
+      <button class="railBtn" data-panel="store" title="备份、导入与导出"><svg viewBox="0 0 24 24"><path d="M4.8 7.4c0-1.7 3.2-3 7.2-3s7.2 1.3 7.2 3v9.2c0 1.7-3.2 3-7.2 3s-7.2-1.3-7.2-3z"/><path d="M4.8 12c0 1.7 3.2 3 7.2 3s7.2-1.3 7.2-3"/></svg><span>备份</span></button>
+    </nav>
+
+    <div class="pages">
+      <!-- 单据信息 -->
+      <section class="pagePanel on" id="panelBase">
+        <div class="card">
+          <div class="card-title">单据信息<span class="sub">单号、日期与计税口径</span></div>
+          <div class="grid">
+            <label class="lbl">报价单号</label>
+            <div style="display:flex;gap:6px">
+              <input class="field" data-k="no" placeholder="AC-20261126-01" style="flex:1 1 auto;min-width:0">
+              <button class="btn sm" id="btnGenNo" style="flex:0 0 auto" title="按当天日期重新生成">重生成</button>
+            </div>
+            <label class="lbl">报价日期</label>
+            <input class="field" type="date" data-k="date">
+
+            <label class="lbl">有效天数</label>
+            <div style="display:flex;align-items:center;gap:6px">
+              <input class="field" type="number" min="1" step="1" data-k="validDays" style="width:90px">
+              <span class="tiny">个自然日</span>
+            </div>
+            <label class="lbl">税率</label>
+            <div style="display:flex;align-items:center;gap:6px">
+              <input class="field" type="number" min="0" max="100" step="1" data-k="taxRate" style="width:90px">
+              <span class="tiny">% ，默认 13</span>
+            </div>
+
+            <label class="lbl">单价口径</label>
+            <select class="field" data-k="taxMode">
+              <option value="in">含税价（单价即含税价）</option>
+              <option value="ex">未税价（另外加税）</option>
+            </select>
+            <label class="lbl">币种</label>
+            <div class="tiny">人民币（￥），软件不做汇率换算</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">客户信息<span class="sub">显示在单据左上</span></div>
+          <div class="grid">
+            <label class="lbl">收件单位</label>
+            <input class="field span3" data-k="cust.name" placeholder="客户的单位名称">
+            <label class="lbl">联系人</label>
+            <input class="field" data-k="cust.contact" placeholder="张三 / 张工">
+            <label class="lbl">电话</label>
+            <input class="field" data-k="cust.phone" placeholder="手机或座机">
+
+            <label class="lbl">传真</label>
+            <input class="field" data-k="cust.fax" placeholder="客户传真（可留空）">
+            <label class="lbl">关于</label>
+            <input class="field" data-k="cust.about" placeholder="报价事由，如：服务器及配件采购">
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">我方信息<span class="sub">显示在单据右上，可永久修改</span></div>
+          <div class="grid">
+            <label class="lbl">发件单位</label>
+            <input class="field span3" data-k="self.name">
+            <label class="lbl">联系电话</label>
+            <input class="field" data-k="self.phone">
+            <label class="lbl">传真</label>
+            <input class="field" data-k="self.fax">
+          </div>
+          <p class="tiny" style="margin:10px 0 0">改这里会同时改所有新单据；改完点右上「保存」即长期生效。</p>
+        </div>
+      </section>
+
+      <!-- 明细 -->
+      <section class="pagePanel" id="panelItems">
+        <div class="card">
+          <div class="card-title">货物明细<span class="sub">数量 × 单价自动算金额</span>
+            <span class="spacer"></span>
+            <button class="btn sm" id="btnAddRow">＋ 添加一行</button>
+          </div>
+          <div class="itemScroll">
+            <table class="edit" id="editItems">
+              <colgroup>
+                <col style="width:42px"><col style="width:18%"><col style="width:38%"><col style="width:64px"><col style="width:96px"><col style="width:100px"><col style="width:34px">
+              </colgroup>
+              <thead>
+                <tr><th>#</th><th>名称</th><th>规格型号</th><th>数量</th><th>单价</th><th>金额</th><th></th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="rowSum">
+            <span class="k">行数</span><span id="rowCount">0</span>
+            <span class="k">合计</span><b id="sumInline">￥0.00</b>
+            <span class="spacer"></span>
+            <button class="btn sm" id="btnClearRows">清空明细</button>
+          </div>
+          <p class="tiny" style="margin:8px 0 0">数量可填小数（如 2.5 米）；单价留空即视为未填，不算金额。打印时空行会自动补足到 10 行。</p>
+        </div>
+      </section>
+
+      <!-- 条款 -->
+      <section class="pagePanel" id="panelTerms">
+        <div class="card">
+          <div class="card-title">条款与备注<span class="sub">对应模板底部的三行说明</span></div>
+          <div class="grid">
+            <label class="lbl">1. 交货期</label>
+            <input class="field span3" data-k="terms.delivery" placeholder="5个工作日">
+            <label class="lbl">2. 发票</label>
+            <input class="field span3" data-k="terms.invoice" placeholder="以税率13%增值税发票">
+            <label class="lbl">3. 有效期</label>
+            <div class="span3 tiny" style="padding:6px 0">由上面「有效天数」自动生成：此报价 <span id="previewDays">1</span> 个自然日内有效。</div>
+          </div>
+          <div style="margin-top:12px">
+            <label class="lbl" style="display:block;text-align:left;margin-bottom:6px">备注（可多行，留空则不显示）</label>
+            <textarea class="field" data-k="remark" rows="3" placeholder="如：以上价格不含运费；如需上门安装另行报价。"></textarea>
+          </div>
+          <div class="rowline">
+            <label class="check"><input type="checkbox" data-k="showSign">显示签章行（报价单位盖章 / 经办人 / 日期）</label>
+          </div>
+        </div>
+      </section>
+
+      <!-- 备份 -->
+      <section class="pagePanel" id="panelStore">
+        <div class="card">
+          <div class="card-title">备份与迁移<span class="sub">数据只存在本机浏览器</span></div>
+          <div class="rowline" style="margin-top:0">
+            <button class="btn sm" id="btnExportJson">导出备份（.json）</button>
+            <button class="btn sm" id="btnImportJson">导入备份</button>
+            <button class="btn sm" id="btnExportCsv">导出明细（.csv）</button>
+            <input type="file" id="fileImport" accept=".json,application/json" hidden>
+          </div>
+          <p class="pnote">
+            换电脑、重装系统、清理浏览器数据之前，先点「导出备份」存一份；到新机器上打开本文件，再「导入备份」即可恢复。
+            平时每次改动都会自动存一份草稿，关掉网页再打开还在。
+          </p>
+        </div>
+        <div class="card">
+          <div class="card-title">清空 / 重来</div>
+          <div class="rowline" style="margin-top:0">
+            <button class="btn sm" id="btnClearAll">清空本单（客户与明细）</button>
+          </div>
+          <p class="pnote">只清空当前这张单，我方信息、条款文案会保留。</p>
+        </div>
+      </section>
+    </div>
+
+    <aside class="previewPane">
+      <div class="previewBar">
+        <span>打印预览 · A4 纵向</span>
+        <span class="spacer"></span>
+        <button class="zBtn" id="zOut" title="缩小">−</button>
+        <span class="zVal" id="zVal">100%</span>
+        <button class="zBtn" id="zIn" title="放大">＋</button>
+        <button class="zFit" id="zFit">适应</button>
+      </div>
+      <div class="previewScroll" id="previewScroll">
+        <div class="zoomWrap" id="zoomWrap">
+          <div class="paper" id="paper">
+            <div class="doc" id="doc"></div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div id="printRoot"></div>
+
+<div id="modalLayer">
+  <div class="modal">
+    <div class="mhead"><b id="mTitle">说明</b><span class="spacer"></span><button class="closeX" id="mClose">✕</button></div>
+    <div class="mbody" id="mBody"></div>
+    <div class="mfoot"><button class="btn" id="mOk">知道了</button></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ==================== 工具函数 ==================== */
+const $  = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
+const fmt = (n, d = 2) => num(n).toLocaleString('zh-CN', { minimumFractionDigits: d, maximumFractionDigits: d });
+const pad2 = n => String(n).padStart(2, '0');
+const todayISO = () => { const d = new Date(); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); };
+const ymd = d => '' + d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate());
+
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 1800);
+}
+function modal(title, html) {
+  $('#mTitle').textContent = title; $('#mBody').innerHTML = html; $('#modalLayer').classList.add('show');
+}
+
+/* ==================== 状态 ==================== */
+/* ==================== 版本 ==================== */
+const VERSION = '1.0';
+
+const KEY = 'ac-quote-draft-v1';
+const KEY_SEQ = 'ac-quote-seq';
+
+function peekNo() {
+  const y = ymd(new Date());
+  let n = 0;
+  try { const raw = JSON.parse(localStorage.getItem(KEY_SEQ) || '{}'); if (raw.day === y) n = raw.n || 0; } catch (e) {}
+  return 'AC-' + y + '-' + pad2(n + 1);
+}
+
+function genNo() {
+  const d = new Date(), y = ymd(d);
+  let n = 0;
+  try { const raw = JSON.parse(localStorage.getItem(KEY_SEQ) || '{}'); if (raw.day === y) n = raw.n || 0; } catch (e) {}
+  n += 1;
+  try { localStorage.setItem(KEY_SEQ, JSON.stringify({ day: y, n: n })); } catch (e) {}
+  return 'AC-' + y + '-' + pad2(n);
+}
+
+function defState(useSeq) {
+  return {
+    no: useSeq ? genNo() : peekNo(), date: todayISO(), validDays: 1, taxRate: 13, taxMode: 'in', showSign: false,
+    cust: { name: '', contact: '', phone: '', fax: '', about: '' },
+    self: { name: '苏州安驰电子科技有限公司', phone: '0512-68128072', fax: '0512-68138215' },
+    items: [
+      { name: '', spec: '', qty: '1', price: '' },
+      { name: '', spec: '', qty: '1', price: '' },
+      { name: '', spec: '', qty: '1', price: '' }
+    ],
+    terms: { delivery: '5个工作日', invoice: '以税率13%增值税发票' },
+    remark: ''
+  };
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return defState(false);
+    const o = JSON.parse(raw);
+    const d = defState(false);
+    return Object.assign(d, o, {
+      cust: Object.assign(d.cust, o.cust || {}),
+      self: Object.assign(d.self, o.self || {}),
+      terms: Object.assign(d.terms, o.terms || {}),
+      items: Array.isArray(o.items) && o.items.length ? o.items.map(x => ({ name: x.name || '', spec: x.spec || '', qty: x.qty === undefined ? '' : String(x.qty), price: x.price === undefined ? '' : String(x.price) })) : d.items
+    });
+  } catch (e) { return defState(false); }
+}
+
+let st = loadState();
+let zoom = 0;          // 0 = 自动适应
+let saveTimer = null;
+
+/* 路径读写 */
+function getPath(o, p) { return p.split('.').reduce((a, k) => (a == null ? a : a[k]), o); }
+function setPath(o, p, v) {
+  const ps = p.split('.'); let t = o;
+  for (let i = 0; i < ps.length - 1; i++) t = t[ps[i]];
+  t[ps[ps.length - 1]] = v;
+}
+
+/* 人民币大写 */
+function rmbUpper(n) {
+  n = Math.round(Math.abs(num(n)) * 100) / 100;
+  if (!isFinite(n) || n === 0) return '零元整';
+  const fraction = ['角', '分'], digit = ['零', '壹', '贰', '叁', '肆', '伍', '陆', '柒', '捌', '玖'],
+        unit = [['元', '万', '亿', '万亿'], ['', '拾', '佰', '仟']];
+  let s = '';
+  for (let i = 0; i < fraction.length; i++) {
+    s += (digit[Math.floor(n * 10 * Math.pow(10, i)) % 10] + fraction[i]).replace(/零./, '');
+  }
+  s = s || '整';
+  n = Math.floor(n);
+  for (let i = 0; i < unit[0].length && n > 0; i++) {
+    let p = '';
+    for (let j = 0; j < unit[1].length && n > 0; j++) {
+      p = digit[n % 10] + unit[1][j] + p;
+      n = Math.floor(n / 10);
+    }
+    s = p.replace(/(零.)*零$/, '').replace(/^$/, '零') + unit[0][i] + s;
+  }
+  return s.replace(/(零.)*零元/, '元').replace(/(零.)+/g, '零').replace(/^整$/, '零元整');
+}
+
+function dateText(d) {
+  if (!d) return '';
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d);
+  return m ? m[1] + '/' + m[2] + '/' + m[3] : d;
+}
+
+/* ==================== 计算 ==================== */
+function calc() {
+  const rate = num(st.taxRate);
+  const mode = st.taxMode;
+  const total = st.items.reduce((a, it) => a + num(it.qty) * num(it.price), 0);
+  let exTax, taxAmt, gross;
+  if (mode === 'in') { gross = total; exTax = total / (1 + rate / 100); taxAmt = gross - exTax; }
+  else { exTax = total; taxAmt = total * rate / 100; gross = total + taxAmt; }
+  return { total, exTax, taxAmt, gross, rate, mode };
+}
+
+/* ==================== 预览渲染 ==================== */
+function mRow(label, val, bold) {
+  return '<div class="mRow"><span class="mLab">' + label + '</span><span class="mVal' + (bold ? ' b' : '') + '">' +
+         (val ? esc(val) : '&nbsp;') + '</span></div>';
+}
+
+function render() {
+  const c = calc();
+  const rate = c.rate, mode = c.mode;
+
+  const headPrice  = mode === 'in' ? '单价（含税' + rate + '%）' : '单价（未税）';
+  const headAmount = mode === 'in' ? '合计（含税' + rate + '%）' : '金额（未税）';
+
+  const nRows = Math.max(st.items.length, 10);
+  let rows = '', seq = 0;
+  for (let i = 0; i < nRows; i++) {
+    const it = st.items[i];
+    const has = it && (String(it.name).trim() !== '' || String(it.price).trim() !== '');
+    if (has) seq++;
+    const amt = it ? num(it.qty) * num(it.price) : 0;
+    rows += '<tr>' +
+      '<td>' + (has ? seq : '') + '</td>' +
+      '<td class="l">' + (it ? esc(it.name) : '') + '</td>' +
+      '<td class="l">' + (it ? esc(it.spec) : '') + '</td>' +
+      '<td>' + (has ? esc(it.qty) : '') + '</td>' +
+      '<td class="r">' + (has && String(it.price) !== '' ? fmt(it.price) : '') + '</td>' +
+      '<td class="r">' + (has && String(it.price) !== '' ? fmt(amt) : '') + '</td>' +
+      '</tr>';
+  }
+
+  const sumNums = c.gross === 0
+    ? '<div class="sk big">价税合计</div><div class="sv big">￥0.00</div>'
+    : '<div class="sk">不含税金额</div>' +
+      '<div class="sv">￥' + fmt(c.exTax) + '</div>' +
+      '<div class="sk">税额（' + rate + '%）</div>' +
+      '<div class="sv">￥' + fmt(c.taxAmt) + '</div>' +
+      '<div class="sk big">价税合计</div>' +
+      '<div class="sv big">￥' + fmt(c.gross) + '</div>';
+
+  $('#doc').innerHTML =
+    '<div class="tRow"><div class="tSide"></div><div class="tTitle">报 价 单</div><div class="tSide"></div></div>' +
+    '<hr class="hRule">' +
+    '<div class="meta">' +
+      '<div>' +
+        mRow('收件单位：', st.cust.name) +
+        mRow('联 系 人：', st.cust.contact) +
+        mRow('电　　话：', st.cust.phone) +
+        mRow('传　　真：', st.cust.fax) +
+        mRow('关　　于：', st.cust.about) +
+      '</div>' +
+      '<div>' +
+        mRow('发件单位：', st.self.name, true) +
+        mRow('联系电话：', st.self.phone) +
+        mRow('传　　真：', st.self.fax) +
+        mRow('日　　期：', dateText(st.date)) +
+        mRow('报价单号：', st.no) +
+      '</div>' +
+    '</div>' +
+    '<div class="lead">根据您介绍的情况，贵单位需要的产品如下，请审核！</div>' +
+    '<table class="items"><colgroup>' +
+      '<col style="width:7%"><col style="width:25%"><col style="width:28%"><col style="width:9%"><col style="width:15%"><col style="width:16%">' +
+    '</colgroup><thead><tr>' +
+      '<th>序号</th><th>名称</th><th>规格型号</th><th>数量</th><th>' + headPrice + '</th><th>' + headAmount + '</th>' +
+    '</tr></thead><tbody>' + rows + '</tbody></table>' +
+    '<div class="sumArea">' +
+      '<div class="upper">人民币（大写）：<b>' + rmbUpper(c.gross) + '</b></div>' +
+      '<div class="sumNums">' + sumNums + '</div>' +
+    '</div>' +
+    '<div class="terms">' +
+      '<div>1. 交货期：' + esc(st.terms.delivery) + '</div>' +
+      '<div>2. 发票：' + esc(st.terms.invoice) + '</div>' +
+      '<div>3. 此报价 ' + (num(st.validDays) || 1) + ' 个自然日内有效。</div>' +
+      (st.remark ? '<div class="remark">备注：' + esc(st.remark) + '</div>' : '') +
+    '</div>' +
+    (st.showSign
+      ? '<div class="sign">' +
+          '<div class="sg">报价单位（盖章）：<span class="sgLine" style="min-width:150px">' + esc(st.self.name) + '</span></div>' +
+          '<div class="sg">经办人：<span class="sgLine"></span></div>' +
+          '<div class="sg">日期：<span class="sgLine"></span></div>' +
+        '</div>'
+      : '');
+
+  /* 顶栏标签 */
+  $('#tagNo').textContent = st.no || '未编号';
+  $('#tagCust').textContent = st.cust.name || '未选客户';
+  $('#tagCust').classList.toggle('hasCust', !!st.cust.name);
+
+  /* 编辑区汇总 */
+  const sin = $('#sumInline'); if (sin) sin.textContent = '￥' + fmt(c.gross);
+  const rc = $('#rowCount'); if (rc) rc.textContent = String(st.items.length);
+  const pd = $('#previewDays'); if (pd) pd.textContent = String(num(st.validDays) || 1);
+
+  fitPreview();
+}
+
+/* 缩放与自适应 */
+function fitPreview() {
+  const paper = $('#paper'), wrap = $('#zoomWrap'), pane = $('#previewScroll');
+  if (!paper || !wrap || !pane) return;
+  const pw = paper.offsetWidth || 794;
+  const avail = Math.max(200, pane.clientWidth - 28);
+  const k = zoom || Math.min(1, avail / pw);
+  paper.style.transform = 'scale(' + k + ')';
+  wrap.style.width = Math.round(pw * k) + 'px';
+  wrap.style.height = Math.round(paper.offsetHeight * k) + 'px';
+  const zv = $('#zVal'); if (zv) zv.textContent = Math.round(k * 100) + '%';
+}
+
+/* ==================== 编辑表单 ==================== */
+function syncForm() {
+  $$('[data-k]').forEach(el => {
+    const v = getPath(st, el.dataset.k);
+    if (el.type === 'checkbox') el.checked = !!v;
+    else el.value = v == null ? '' : v;
+  });
+  const sql = $('[data-k="taxMode"]'); if (sql) sql.value = st.taxMode;
+}
+
+document.addEventListener('input', e => {
+  const el = e.target;
+  if (!el.dataset || !el.dataset.k) return;
+  let v;
+  if (el.type === 'checkbox') v = el.checked;
+  else if (el.type === 'number') v = el.value === '' ? '' : el.value;
+  else v = el.value;
+  setPath(st, el.dataset.k, v);
+  render();
+  autoSave();
+});
+
+/* ==================== 明细编辑表 ==================== */
+function renderEdit() {
+  const tb = $('#editItems tbody');
+  if (!tb) return;
+  tb.innerHTML = st.items.map((it, i) =>
+    '<tr data-i="' + i + '">' +
+      '<td class="idx">' + (i + 1) + '</td>' +
+      '<td><input data-i="' + i + '" data-f="name" value="' + esc(it.name) + '" placeholder="产品名称"></td>' +
+      '<td><input data-i="' + i + '" data-f="spec" value="' + esc(it.spec) + '" placeholder="型号 / 配置"></td>' +
+      '<td><input data-i="' + i + '" data-f="qty" value="' + esc(it.qty) + '" placeholder="1"></td>' +
+      '<td><input data-i="' + i + '" data-f="price" value="' + esc(it.price) + '" placeholder="0.00"></td>' +
+      '<td class="amt">' + (String(it.price) !== '' && String(it.qty) !== '' ? fmt(num(it.qty) * num(it.price)) : '') + '</td>' +
+      '<td class="del"><button class="delBtn" data-del="' + i + '" title="删除此行">✕</button></td>' +
+    '</tr>').join('');
+  syncEditAmounts();
+}
+
+function syncEditAmounts() {
+  const tb = $('#editItems tbody');
+  if (!tb) return;
+  $$('tr[data-i]', tb).forEach(tr => {
+    const i = +tr.dataset.i, it = st.items[i];
+    const cell = tr.querySelector('.amt');
+    if (cell && it) cell.textContent = (String(it.price) !== '' && String(it.qty) !== '') ? fmt(num(it.qty) * num(it.price)) : '';
+  });
+  const c = calc();
+  const sin = $('#sumInline'); if (sin) sin.textContent = '￥' + fmt(c.gross);
+  const rc = $('#rowCount'); if (rc) rc.textContent = String(st.items.length);
+}
+
+document.addEventListener('input', e => {
+  const el = e.target;
+  if (!el.dataset || el.dataset.i === undefined || !el.dataset.f) return;
+  const i = +el.dataset.i; if (!st.items[i]) return;
+  st.items[i][el.dataset.f] = el.value;
+  const tr = el.closest('tr');
+  if (tr) {
+    const it = st.items[i], cell = tr.querySelector('.amt');
+    if (cell) cell.textContent = (String(it.price) !== '' && String(it.qty) !== '') ? fmt(num(it.qty) * num(it.price)) : '';
+  }
+  syncEditAmounts(); render(); autoSave();
+});
+
+$('#editItems').addEventListener('click', e => {
+  const b = e.target.closest('[data-del]');
+  if (!b) return;
+  const i = +b.dataset.del;
+  st.items.splice(i, 1);
+  if (!st.items.length) st.items.push({ name: '', spec: '', qty: '1', price: '' });
+  renderEdit(); render(); autoSave();
+});
+
+$('#btnAddRow').addEventListener('click', () => {
+  st.items.push({ name: '', spec: '', qty: '1', price: '' });
+  renderEdit(); render(); autoSave();
+  const sc = $('.itemScroll'); if (sc) sc.scrollTop = sc.scrollHeight;
+});
+
+$('#btnClearRows').addEventListener('click', () => {
+  if (!confirm('清空所有明细行？')) return;
+  st.items = [{ name: '', spec: '', qty: '1', price: '' }];
+  renderEdit(); render(); autoSave();
+});
+
+/* ==================== 导航 ==================== */
+$$('.railBtn').forEach(b => b.addEventListener('click', () => {
+  $$('.railBtn').forEach(x => x.classList.toggle('on', x === b));
+  $$('.pagePanel').forEach(p => p.classList.toggle('on', p.id === 'panel' + b.dataset.panel[0].toUpperCase() + b.dataset.panel.slice(1)));
+}));
+
+/* ==================== 保存 / 新建 ==================== */
+function autoSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => saveNow(true), 500);
+}
+function saveNow(silent) {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(st));
+    if (!silent) toast('已保存到本机');
+    const tag = $('#tagNo'); if (tag) tag.title = '已保存 ' + new Date().toLocaleTimeString();
+  } catch (e) { if (!silent) toast('保存失败：浏览器禁用了本地存储'); }
+}
+
+$('#btnSave').addEventListener('click', () => saveNow(false));
+
+$('#btnNew').addEventListener('click', () => {
+  if (!confirm('新建一张空白报价单？当前未保存的修改会丢失（建议先点「保存」）。')) return;
+  st = defState();
+  syncForm(); renderEdit(); render(); saveNow(true);
+  toast('已新建：' + st.no);
+});
+
+$('#btnGenNo').addEventListener('click', () => {
+  st.no = genNo(); syncForm(); render(); autoSave();
+});
+
+/* ==================== 打印 ==================== */
+$('#btnPrint').addEventListener('click', () => {
+  const itemsIn = st.items.filter(it => String(it.name).trim() !== '' || String(it.price).trim() !== '');
+  if (!itemsIn.length) { toast('明细还是空的，先填一行再打印'); return; }
+  $('#printRoot').innerHTML = '<div class="doc">' + $('#doc').innerHTML + '</div>';
+  window.print();
+});
+window.addEventListener('afterprint', () => { $('#printRoot').innerHTML = ''; });
+
+/* ==================== 缩放按钮 ==================== */
+function curScale() { const p = $('#paper'), pane = $('#previewScroll'); return zoom || Math.min(1, Math.max(200, pane.clientWidth - 28) / (p.offsetWidth || 794)); }
+$('#zIn').addEventListener('click', () => { zoom = Math.min(1.6, curScale() + 0.1); fitPreview(); });
+$('#zOut').addEventListener('click', () => { zoom = Math.max(0.4, curScale() - 0.1); fitPreview(); });
+$('#zFit').addEventListener('click', () => { zoom = 0; fitPreview(); });
+window.addEventListener('resize', () => { if (!zoom) fitPreview(); });
+
+/* ==================== 备份 / 导入 / 导出 ==================== */
+function dl(filename, content, type) {
+  const blob = new Blob([content], { type: type || 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+}
+
+$('#btnExportJson').addEventListener('click', () => {
+  dl('报价单_' + (st.no || 'no') + '.json', JSON.stringify(st, null, 2), 'application/json;charset=utf-8');
+  toast('已导出备份');
+});
+
+$('#btnImportJson').addEventListener('click', () => $('#fileImport').click());
+$('#fileImport').addEventListener('change', e => {
+  const f = e.target.files && e.target.files[0];
+  if (!f) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    try {
+      const o = JSON.parse(rd.result);
+      if (!o || typeof o !== 'object') throw new Error('bad');
+      const d = defState(false);
+      st = Object.assign(d, o, {
+        cust: Object.assign(d.cust, o.cust || {}),
+        self: Object.assign(d.self, o.self || {}),
+        terms: Object.assign(d.terms, o.terms || {}),
+        items: (Array.isArray(o.items) && o.items.length) ? o.items.map(x => ({ name: x.name || '', spec: x.spec || '', qty: x.qty == null ? '' : String(x.qty), price: x.price == null ? '' : String(x.price) })) : d.items
+      });
+      syncForm(); renderEdit(); render(); saveNow(true);
+      toast('导入成功：' + (st.cust.name || st.no));
+    } catch (err) { toast('导入失败：文件格式不对'); }
+    e.target.value = '';
+  };
+  rd.readAsText(f, 'utf-8');
+});
+
+$('#btnExportCsv').addEventListener('click', () => {
+  const c = calc();
+  const rows = [
+    ['报价单号', st.no, '报价日期', st.date],
+    ['收件单位', st.cust.name, '联系人', st.cust.contact],
+    ['电话', st.cust.phone, '关于', st.cust.about],
+    ['发件单位', st.self.name, '联系电话', st.self.phone],
+    [],
+    ['序号', '名称', '规格型号', '数量', '单价', '金额']
+  ];
+  st.items.forEach((it, i) => {
+    if (String(it.name).trim() === '' && String(it.price).trim() === '') return;
+    rows.push([i + 1, it.name, it.spec, it.qty, it.price, num(it.qty) * num(it.price)]);
+  });
+  rows.push([]);
+  rows.push(['价税合计', '', '', '', '', c.gross]);
+  rows.push(['人民币大写', rmbUpper(c.gross)]);
+  const csv = rows.map(r => r.map(v => {
+    const s = String(v == null ? '' : v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }).join(',')).join('\r\n');
+  dl('报价单_' + (st.no || 'no') + '.csv', '\ufeff' + csv, 'text/csv;charset=utf-8');
+  toast('已导出 CSV');
+});
+
+$('#btnClearAll').addEventListener('click', () => {
+  if (!confirm('清空客户信息与明细？我方信息与条款会保留。')) return;
+  st.no = genNo(); st.date = todayISO();
+  st.cust = { name: '', contact: '', phone: '', fax: '', about: '' };
+  st.items = [{ name: '', spec: '', qty: '1', price: '' }];
+  st.remark = '';
+  syncForm(); renderEdit(); render(); saveNow(true);
+  toast('已清空本单');
+});
+
+/* ==================== 说明弹窗 ==================== */
+function helpHtml() {
+  return '<div class="helpText">' +
+    '<p><b>报价单生成器 v' + VERSION + '</b> ── 单网页版，不联网、不装软件、数据只存本机。</p>' +
+    '<p>版式按「安驰报价单模板」重排：标题、客户/我方两栏、明细表、说明条款，A4 纵向一页。</p>' +
+    '<p><b>怎么用：</b>左边「单据」填客户和单号 → 「明细」逐行填名称、型号、数量、单价（金额和合计自动算、自动转人民币大写）→ 「条款」改交期和发票说明 → 右上「打印 / 导出PDF」。</p>' +
+    '<p><b>打印设置：</b>纸张 A4、纵向、缩放 100%、勾掉页眉页脚、「背景图形」可不勾。打印预览里若看不到完整的边框，检查是否选了「仅打印选定区域」。</p>' +
+    '<p><b>两点提醒：</b>单价口径默认「含税价」，即填的单价就是含税价；若按未税报价，把口径改成「未税价」，合计区会自动加 13% 税并分开列出税额。</p>' +
+    '<p><b>数据安全：</b>改动会自动存草稿。换电脑或清浏览器数据之前，去「备份」页导出 .json；新机器打开本文件后导入即可。</p>' +
+    '<p style="color:#6b7280">版本 ' + VERSION + ' · 2026-11　｜　快捷键：Ctrl+S 保存，Ctrl+P 打印。</p>' +
+  '</div>';
+}
+$('#btnHelp').addEventListener('click', () => modal('使用说明', helpHtml()));
+$('#mClose').addEventListener('click', () => $('#modalLayer').classList.remove('show'));
+$('#mOk').addEventListener('click', () => $('#modalLayer').classList.remove('show'));
+$('#modalLayer').addEventListener('click', e => { if (e.target.id === 'modalLayer') $('#modalLayer').classList.remove('show'); });
+
+/* ==================== 快捷键 ==================== */
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); saveNow(false); }
+});
+
+/* ==================== 启动 ==================== */
+$('#verTag').textContent = 'v' + VERSION;
+syncForm();
+renderEdit();
+render();
+requestAnimationFrame(fitPreview);
+window.addEventListener('load', fitPreview);
+</script>
+</body>
+</html>

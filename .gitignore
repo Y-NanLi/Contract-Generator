@@ -1,0 +1,6 @@
+# 临时与 Office/WPS 锁文件
+~$*
+*.tmp
+*.bak
+Thumbs.db
+desktop.ini
