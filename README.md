@@ -52,7 +52,7 @@ docker compose up -d
 # 打开 http://这台机器的IP:8090
 ```
 
-首次要在 GitHub 上做一次设置：Actions 跑出包之后，把 **Packages** 里 `contract-generator` 的可见性改成 **Public**，否则 NAS 拉不动。步骤见 [`部署说明.md`](部署说明.md)。
+首次不用额外设置：Actions 跑完镜像就是公开可拉的（匿名 `docker pull` 已验证）。若哪天出现 401/denied，去 GitHub 包页面把可见性改成 Public。步骤见 [`部署说明.md`](部署说明.md)。
 
 本地改完不等 Actions，立刻看效果：
 

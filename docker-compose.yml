@@ -10,11 +10,12 @@
 #     docker compose -f deploy/compose-local.yml up -d --build
 #
 # 三种方式都占 8090，别同时开。数据存在访问者浏览器的 localStorage，按地址隔离。
+# 拉 ghcr.io 太慢时，可先给飞牛配代理；第三方镜像站（如 ghcr.nju.edu.cn）实测未收录本镜像，别照抄。
 
 services:
   web:
-    # 国内直接拉 ghcr.io 常失败，默认走南京大学镜像站；不通时换成 ghcr.io/y-nanli/contract-generator:latest
-    image: ghcr.nju.edu.cn/y-nanli/contract-generator:latest
+    # 官方源实测可匿名拉（2026-11-27 验证）
+    image: ghcr.io/y-nanli/contract-generator:latest
     container_name: quote-web
     restart: unless-stopped
     ports:
