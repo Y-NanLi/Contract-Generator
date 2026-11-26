@@ -40,27 +40,28 @@
 
 打印设置：纸张 A4、纵向、缩放 100%、取消页眉页脚、不勾「背景图形」。
 
-## 局域网 / NAS 部署（Docker）
+## 局域网 / NAS 部署（跟着 GitHub 自动更新）
 
 容器只做静态托管，页面还是这一个 HTML，没有后端、没有数据库；单据数据仍存在访问者浏览器里（按访问地址隔离）。
 
+链路：`push 到 main → GitHub Actions 构建 ghcr 镜像 → NAS 上的 Watchtower 每 5 分钟自动换新容器`。
+
 ```bash
-docker compose up -d --build        # 在本目录执行
+# 飞牛 / 服务器上（仓库根 compose 就是这套）
+docker compose up -d
 # 打开 http://这台机器的IP:8090
 ```
 
-不想每次打镜像也可以只挂文件（改完 HTML 刷新即生效）：
+首次要在 GitHub 上做一次设置：Actions 跑出包之后，把 **Packages** 里 `contract-generator` 的可见性改成 **Public**，否则 NAS 拉不动。步骤见 [`部署说明.md`](部署说明.md)。
 
-```yaml
-services:
-  quote:
-    image: nginx:alpine
-    ports: ["8090:80"]
-    volumes:
-      - /vol1/1000/docker/quote/报价单生成器.html:/usr/share/nginx/html/index.html:ro
+本地改完不等 Actions，立刻看效果：
+
+```bash
+docker compose -f deploy/compose-local.yml up -d --build   # 打本地镜像
+docker compose -f deploy/compose-local.yml up -d           # 或改成挂载文件，改完刷新即生效
 ```
 
-端口刻意用 8090，避开送货单生成器常用的 8088；细节（飞牛 Compose 怎么填、从 file:// 换到 http:// 怎么搬数据）见 [`部署说明.md`](部署说明.md)。
+端口刻意用 8090，避开送货单生成器常用的 8088。数据迁移（`file://` → `http://` 必须导一次备份）见部署说明第四节。
 
 ## 文件
 
@@ -68,8 +69,11 @@ services:
 | --- | --- |
 | `报价单生成器.html` | 全部程序（HTML + CSS + JS 内联，3 个公司 logo 以 base64 内嵌，约 472 KB，v2.0） |
 | `README.md` | 本说明 |
-| `Dockerfile` / `docker-compose.yml` / `deploy/nginx.conf` / `.dockerignore` | 容器部署（nginx 静态托管，端口 8090） |
-| `部署说明.md` | Docker / 飞牛部署、端口与数据迁移 |
+| `Dockerfile` / `deploy/nginx.conf` / `.dockerignore` | 镜像本体（nginx 静态托管） |
+| `docker-compose.yml` | 自动更新版：拉 ghcr 镜像 + Watchtower（端口 8090） |
+| `deploy/compose-local.yml` | 本地构建 / 纯挂载版（改代码时用） |
+| `.github/workflows/build-image.yml` | push main 自动构建并推送 ghcr |
+| `部署说明.md` | 首次设置、飞牛部署、自动更新、数据迁移与排错 |
 
 ## 数据与备份
 

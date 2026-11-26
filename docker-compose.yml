@@ -1,25 +1,36 @@
-# 报价单生成器 v2.0 —— 容器版（局域网访问）
+# 报价单生成器 v2.0 —— 跟着 GitHub 自动更新
 #
-# 用法（在本目录执行）：
-#     docker compose up -d --build
+# 本目录执行：docker compose up -d
 # 打开：http://这台机器的IP:8090
 #
-# 说明：
-#   - 页面是单文件网页，容器只负责静态托管，没有后端、没有数据库；
-#   - 单据、记录库、货品库存在**访问者浏览器**里，按访问地址隔离，
-#     从 file:// 换到 http:// 需要用「备份」页导出/导入搬一次（见 部署说明.md）；
-#   - 8090 是刻意避开送货单生成器常用的 8088，两个站可以同时跑。
+# 链路：push 到 GitHub main → Actions 构建镜像（约 1 分钟）→ Watchtower 每 5 分钟检查，
+#       发现镜像更新就自动拉取并重建容器。以后改 HTML 只要 push，NAS 不用动。
+#
+# 想本地改完立刻看效果（不等 Actions）：
+#     docker compose -f deploy/compose-local.yml up -d --build
+#
+# 三种方式都占 8090，别同时开。数据存在访问者浏览器的 localStorage，按地址隔离。
 
 services:
-  quote:
-    build: .
-    image: quote-generator:2.0
+  web:
+    # 国内直接拉 ghcr.io 常失败，默认走南京大学镜像站；不通时换成 ghcr.io/y-nanli/contract-generator:latest
+    image: ghcr.nju.edu.cn/y-nanli/contract-generator:latest
     container_name: quote-web
     restart: unless-stopped
     ports:
       - "8090:80"
+    labels:
+      # 只让 Watchtower 跟踪带这个标签的容器
+      - com.centurylinklabs.watchtower.enable=true
 
-    # —— 不想每次改文件都重新构建？把上面两行 build/image 注掉，改用挂载：
-    # volumes:
-    #   - ./报价单生成器.html:/usr/share/nginx/html/index.html:ro
-    # 这样改动 HTML 后浏览器刷新即可生效（容器不用重启）。
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: quote-watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_LABEL_ENABLE=true
+      - WATCHTOWER_POLL_INTERVAL=300
+      - WATCHTOWER_CLEANUP=true
+      - TZ=Asia/Shanghai

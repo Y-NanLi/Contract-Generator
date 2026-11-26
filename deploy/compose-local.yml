@@ -1,0 +1,23 @@
+# 本地用法（不走 GitHub Actions，改完本地立刻生效）
+#
+# ① 本地构建镜像：
+#     docker compose -f deploy/compose-local.yml up -d --build
+#    以后每次改完 HTML 重跑这一条即可（镜像名固定，容器就地替换）
+#
+# ② 不打镜像、直接挂文件（最快的调试方式，改完浏览器刷新就生效）：
+#    把下面 build / image 两段注掉，启用 volumes 那两行
+#
+# 两种都占 8090，和仓库根的自动更新版本二选一，别同时开。
+
+services:
+  web:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: quote-generator:2.0
+    container_name: quote-web
+    restart: unless-stopped
+    ports:
+      - "8090:80"
+    # volumes:
+    #   - ../报价单生成器.html:/usr/share/nginx/html/index.html:ro
