@@ -4,3 +4,6 @@
 *.bak
 Thumbs.db
 desktop.ini
+
+# 测试/截图临时目录
+_t*/
