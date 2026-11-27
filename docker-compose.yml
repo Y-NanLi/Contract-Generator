@@ -14,8 +14,9 @@
 
 services:
   web:
-    # 官方源实测可匿名拉（2026-11-27 验证）
-    image: ghcr.io/y-nanli/contract-generator:latest
+    # 官网源实测可匿名拉（2026-11-27 验证）
+    # 镜像地址走变量：同目录放 .env 写 QUOTE_IMAGE=... 就能覆盖（见 .env.example）
+    image: ${QUOTE_IMAGE:-ghcr.io/y-nanli/contract-generator:latest}
     container_name: quote-web
     restart: unless-stopped
     ports:
@@ -32,6 +33,6 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - WATCHTOWER_LABEL_ENABLE=true
-      - WATCHTOWER_POLL_INTERVAL=300
+      - WATCHTOWER_POLL_INTERVAL=${WATCHTOWER_POLL_INTERVAL:-300}
       - WATCHTOWER_CLEANUP=true
       - TZ=Asia/Shanghai
